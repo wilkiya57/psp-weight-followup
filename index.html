@@ -293,6 +293,16 @@
     .follow-message-block h4{font-size:14px;margin:0 0 6px}
     .follow-message-block .push-copy{overflow-wrap:anywhere}
     .follow-message-card{margin-top:8px;padding:8px 10px;background:#fff;border:1px solid #dce6f0;border-radius:7px;color:#1a4b77;font-weight:600}
+    .weekly-push{display:grid;gap:12px}
+    .weekly-push .weekly-summary{margin:0;background:#fff;white-space:pre-line;line-height:1.85}
+    .weekly-chart{margin:0;padding:14px 14px 10px;background:#fff;border:1px solid #dce6f0;border-radius:8px}
+    .weekly-chart figcaption{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;font-size:14px;font-weight:600}
+    .weekly-chart figcaption span{font-size:12px;color:#617c99;font-weight:400}
+    .weekly-chart-legend{display:flex;flex-wrap:wrap;gap:5px 16px;margin:8px 0 2px;font-size:12px;color:#365777}
+    .weekly-chart-legend span{display:inline-flex;align-items:center;gap:5px}
+    .weekly-chart-legend i{width:8px;height:8px;border-radius:50%;background:var(--series-color)}
+    .weekly-chart svg{display:block;width:100%;height:auto;overflow:visible;font-family:inherit}
+    .weekly-chart-note{margin:2px 0 0;font-size:12px;color:#617c99;line-height:1.6}
     .follow-meal{--meal-border:#e2ede9;border:1px solid var(--meal-border);border-radius:12px;padding:4px 12px 2px;margin:0 0 10px}
     .follow-meal .dot.c{background:#6999c4}.follow-meal .dot.p{background:#d98181}.follow-meal .dot.f{background:#ba81a3}
     .follow-questionnaire{border:1px solid #e1e9f1;border-radius:8px;overflow:hidden}
@@ -569,6 +579,15 @@
     .meal-summary-row{display:grid;grid-template-columns:1fr auto 62px;align-items:center;gap:8px;min-height:34px;border-bottom:1px solid #edf2f1;font-size:13px}
     .meal-summary-row>span:last-child{text-align:right}
     .meal-summary>.hint{margin-top:8px}
+
+    /* Web 详情复用小程序卡片主题，所有内容只读。 */
+    .follow-readonly{--meal-accent:#087c73;--meal-border:#eaf0ef;background:#f2f7f7;color:#173347;padding:12px;border:1px solid #e2eeeb;border-radius:12px}
+    .follow-readonly .follow-meal{border:0;border-radius:18px;padding:12px 14px;box-shadow:0 2px 8px #123d4210;margin-bottom:12px;background:#fff}
+    .follow-readonly .h5-card:last-child{margin-bottom:0}
+    .follow-readonly .meal-item{min-height:48px;display:flex;align-items:center;padding:8px 0;overflow-wrap:anywhere}
+    .follow-readonly .meal-row .meal-value{margin-left:auto}
+    .follow-readonly .meal-row .meal-label{color:#4b6470;font-size:14px}
+    .follow-readonly .hint{color:#516970}
 
     .desk{min-height:100vh;background:#f4f6f8;padding:28px 24px 48px}
     .desk-inner{max-width:1080px;margin:0 auto}
@@ -2047,7 +2066,7 @@
     commit(result, stayed);
   }
 
-  function mealSummary(items, sum, evaluated) {
+  function mealSummary(items, sum, evaluated, readOnly = false) {
     var energy = [sum.carb * 4, sum.protein * 4, sum.fat * 9];
     var total = energy.reduce(function (acc, value) { return acc + value; }, 0);
     var names = ["碳水", "蛋白质", "脂肪"];
@@ -2056,17 +2075,19 @@
     var bars = energy.map(function (value, index) {
       return total && value ? '<span class="' + keys[index] + '" style="flex-grow:' + value + '"></span>' : "";
     }).join("");
-    return '<details class="h5-card meal-summary" id="mealSummary" tabindex="-1" open>'
-      + '<summary>' + (evaluated ? '<span class="meal-evaluation-done" role="status">评估已更新</span>' : '')
-      + '<span class="meal-summary-head"><span><strong>本餐合计</strong><small class="summary-closed">查看营养分布</small><small class="summary-open">收起营养分布</small></span>'
+    return (readOnly ? '<section class="h5-card meal-summary">' : '<details class="h5-card meal-summary" id="mealSummary" tabindex="-1" open>')
+      + (readOnly ? '<div>' : '<summary>') + (evaluated ? '<span class="meal-evaluation-done" role="status">评估已更新</span>' : '')
+      + '<span class="meal-summary-head"><span><strong>本餐合计</strong>'
+      + (readOnly ? '' : '<small class="summary-closed">查看营养分布</small><small class="summary-open">收起营养分布</small>') + '</span>'
       + '<b>' + (sum.unknown === items.length ? "暂无估算" : sum.kcal + ' <small>千卡</small>') + '</b></span>'
-      + (bars ? '<span class="meal-chart" aria-hidden="true">' + bars + '</span>' : '') + '</summary>'
+      + (bars ? '<span class="meal-chart" aria-hidden="true">' + bars + '</span>' : '') + (readOnly ? '</div>' : '</summary>')
       + names.map(function (name, index) {
         return '<div class="meal-summary-row"><span><i class="dot ' + keys[index] + '"></i>' + name + '</span><b>'
           + (sum.unknown === items.length ? "—" : fmt(amounts[index]) + ' 克') + '</b><span>'
           + (total ? fmt(energy[index] / total * 100) + '%' : '—') + '</span></div>';
       }).join("")
-      + '<p class="hint">' + (sum.unknown ? '有 ' + sum.unknown + ' 项未获得估算，合计仅含已分析食物。' : '比例按三大营养素提供的热量估算。') + '</p></details>';
+      + '<p class="hint">' + (sum.unknown ? '有 ' + sum.unknown + ' 项未获得估算，合计仅含已分析食物。' : '比例按三大营养素提供的热量估算。') + '</p>'
+      + (readOnly ? '</section>' : '</details>');
   }
 
   function renderMeal(draft, evaluated = false) {
@@ -2340,10 +2361,12 @@
     var dateMeals = isToday ? dailyMeals : dailyHistoryMeals[date] || {};
     var exercise = dailyExercise[date] || [];
     if (staged && staged.exerciseChanges.length) {
-      exercise = exercise.map(function (item) {
+      exercise = exercise.filter(function (item) {
+        return !staged.exerciseChanges.some(function (change) { return change.original === item && change.deleted; });
+      }).map(function (item) {
         var change = staged.exerciseChanges.find(function (entry) { return entry.original === item; });
         return change ? change.item : item;
-      }).concat(staged.exerciseChanges.filter(function (change) { return !change.original; })
+      }).concat(staged.exerciseChanges.filter(function (change) { return !change.original && !change.deleted; })
         .map(function (change) { return change.item; }));
     }
     var meals = mealOptions.map(function (type) {
@@ -2719,6 +2742,10 @@
         saveDailyMeal(Object.assign({}, group, {foods:results[index]}));
       });
       stage.exerciseChanges.forEach(function (change) {
+        if (change.deleted) {
+          dailyExercise[date] = dailyExercise[date].filter(function (item) { return item !== change.original; });
+          return;
+        }
         var item = change.item;
         var record = {name:item.name, minutes:item.minutes, kcal:estimateExerciseKcal(item.name, item.minutes)};
         if (change.original) Object.assign(change.original, record);
@@ -2761,6 +2788,7 @@
       + '<div class="meal-row"><label for="dailyExerciseName">运动项目</label><input id="dailyExerciseName" maxlength="30" placeholder="例如：快走" /></div>'
       + '<div class="meal-row"><label for="dailyExerciseMinutes">时长（分钟）</label><input id="dailyExerciseMinutes" type="number" min="1" max="1440" step="1" placeholder="请输入时长" /></div></div>',
       (item && item.pending ? '<button class="btn meal-secondary" type="button" id="discardExerciseChange">撤销本次修改</button>' : '')
+      + (item && date === dailyToday ? '<button class="btn meal-secondary" type="button" id="deleteDailyExercise">删除运动</button>' : '')
       + '<button class="btn btn-primary" type="button" id="saveDailyExercise">加入本日修改</button>');
     var name = document.getElementById("dailyExerciseName");
     var minutes = document.getElementById("dailyExerciseMinutes");
@@ -2775,6 +2803,23 @@
       stage.exerciseChanges.splice(stage.exerciseChanges.indexOf(previousChange), 1);
       saveDailyDraft(date, stage);
       renderDailyDetail();
+    };
+    var deleteButton = document.getElementById("deleteDailyExercise");
+    if (deleteButton) deleteButton.onclick = function () {
+      openMealSheet("删除运动记录", '<p>确认删除' + esc(item.name) + ' ' + item.minutes + ' 分钟的记录？</p>'
+        + '<p class="hint">删除将先加入本日修改，点击「确认本日修改」后生效，并更新运动消耗和今日小结。</p>',
+        '<button class="btn meal-secondary" type="button" id="cancelExerciseDelete">取消</button>'
+        + '<button class="btn btn-primary" type="button" id="confirmExerciseDelete">确认删除</button>');
+      document.getElementById("cancelExerciseDelete").onclick = function () { openDailyExercise(date, item); };
+      document.getElementById("confirmExerciseDelete").onclick = function () {
+        var original = previousChange ? previousChange.original : item;
+        if (previousChange) stage.exerciseChanges.splice(stage.exerciseChanges.indexOf(previousChange), 1);
+        /* 已保存的记录暂存删除标记，尚未确认的新增记录直接从草稿移除。 */
+        if (original) stage.exerciseChanges.push({original:original, item:original, deleted:true});
+        stage.error = false;
+        saveDailyDraft(date, stage);
+        renderDailyDetail();
+      };
     };
     document.getElementById("saveDailyExercise").onclick = function () {
       var activity = name.value.trim();
@@ -2801,6 +2846,7 @@
     var stage = getDailyDraft(date);
     var pendingFood = stage.groups.length > 0;
     var pendingExercise = stage.exerciseChanges.length > 0;
+    var deletedExerciseCount = stage.exerciseChanges.filter(function (change) { return change.deleted; }).length;
     var pending = pendingFood || pendingExercise;
     var data = dailySummaryData(date, stage);
     var isToday = date === dailyToday;
@@ -2847,13 +2893,14 @@
           }).join("") + '</section>';
       }).join("")
       + '<section class="h5-card"><h4>运动记录</h4>'
+      + (deletedExerciseCount ? '<p class="meal-pending">' + deletedExerciseCount + ' 条运动记录待删除，点击「确认本日修改」后生效。</p>' : '')
       + (data.exercise.length ? data.exercise.map(function (item, index) {
         var contents = dailyExerciseContents(item);
         if (!isToday && !item.pending) return '<div class="daily-exercise">' + contents + '</div>';
         return '<button type="button" class="daily-exercise daily-exercise-action" data-exercise-edit="' + index
           + '" aria-label="修改运动：' + esc(item.name) + '，' + item.minutes + ' 分钟">'
           + contents + mealIcon("chevron") + '</button>';
-      }).join("") : '<p class="hint">当天没有运动记录。</p>') + '</section>';
+      }).join("") : deletedExerciseCount ? '' : '<p class="hint">当天没有运动记录。</p>') + '</section>';
     var actions = '<button class="btn meal-secondary" type="button" id="dailyRecordFood">记录食物</button>'
       + '<button class="btn ' + (pending ? "meal-secondary" : "btn-primary") + '" type="button" id="dailyRecordExercise">记录运动</button>';
     var pendingLabel = pendingFood && pendingExercise ? "饮食与运动" : pendingFood ? "饮食" : "运动";
@@ -3007,6 +3054,30 @@
     nutritionDemoNow = time;
   }
 
+  /* 周报预置独立的示例快照，不改动患者已有的饮食、运动和指标记录。 */
+  function weeklyReportExample(date) {
+    var start = new Date(date + "T00:00:00Z");
+    start.setUTCDate(start.getUTCDate() - 6);
+    var startDate = start.toISOString().slice(0, 10);
+    function shortDate(value) {
+      return Number(value.slice(5, 7)) + "月" + Number(value.slice(8)) + "日";
+    }
+    return {
+      start:startDate, end:date,
+      summary:"本周（" + shortDate(startDate) + "至" + shortDate(date) + "），空腹血糖从 6.5 升至 7.6 mmol/L，较本周首次记录上升 1.1 mmol/L。血脂四项和尿酸本周各记录 1 次，暂时无法判断本周变化趋势。\n\n"
+        + "饮食打卡 6 餐、覆盖 4 天，已记录餐食估算摄入约 2948 千卡；运动记录 1 次，累计 25 分钟，估算消耗约 100 千卡。体重从 69.1 公斤降至 68.9 公斤，较本周首次记录下降 0.2 公斤。\n\n"
+        + "本周记录天数还不多，方便的话，把每天的饮食、运动和体重多记几次，趋势会更清楚，也方便一起安排下一周的调整。",
+      glucose:[{name:"空腹血糖", color:"#4b89b7", points:[{date:startDate,value:6.5},{date:date,value:7.6}]}],
+      lipids:[
+        {name:"总胆固醇",color:"#4b89b7",points:[{date:date,value:5.4}]},
+        {name:"甘油三酯",color:"#b58426",points:[{date:date,value:1.85}]},
+        {name:"低密度脂蛋白胆固醇",color:"#c26885",points:[{date:date,value:3.61}]},
+        {name:"高密度脂蛋白胆固醇",color:"#358c83",points:[{date:date,value:1.28}]}
+      ],
+      uricAcid:[{name:"尿酸",color:"#4b89b7",points:[{date:date,value:355}]}]
+    };
+  }
+
   function nutritionFollowDay(date) {
     var today = date === dailyToday;
     var future = date > dailyToday;
@@ -3144,7 +3215,8 @@
     var weekday = new Date(date + "T00:00:00Z").getUTCDay();
     if (weekday === 0) {
       add("食谱建议", "09:00:00", "内容", "本周食谱建议已整理好，可以点开看看正餐搭配。", Object.assign(fixed("09:00:00"), {card:"本周食谱建议", cardType:"图文"}));
-      add("周报", "21:30:00", "内容", "本周记录已汇总。可以在周报查看体重变化、饮食与运动记录，以及下一周的打卡建议。", Object.assign(fixed("21:30:00"), {card:"查看减重周报"}));
+      var weeklyReport = weeklyReportExample(date);
+      add("周报", "21:30:00", "内容", weeklyReport.summary, Object.assign(fixed("21:30:00"), {weeklyReport:weeklyReport}));
     }
     if ([0,2,4].includes(weekday)) {
       add("运动视频", "17:00:00", "内容", "今天的运动视频已准备好，有空可以点开看看。", Object.assign(fixed("17:00:00"), {card:"运动视频", cardType:"视频"}));
@@ -3799,6 +3871,61 @@
       }).join("") + '</section>';
   }
 
+  /* 只读取已保存记录，不带入患者尚未确认的草稿；其他患者不借用演示患者的数据。 */
+  function followNutritionData(date) {
+    if (currentPatientId !== "p1") {
+      return {items:[], sum:totals([]), exercise:[], exerciseKcal:null, noExercise:false,
+        missing:["早餐","午餐","晚餐"], meals:["早餐","午餐","晚餐"].map(function (type) {
+          return {type:type, items:[], sum:totals([])};
+        })};
+    }
+    var data = dailySummaryData(date);
+    var example = nutritionExamples[date] || {};
+    if (example.activity) data.exercise = [example.activity].concat(data.exercise);
+    data.noExercise = !!example.noExercise && !data.exercise.length;
+    var estimated = data.exercise.filter(function (item) { return item.kcal !== null; });
+    data.exerciseKcal = estimated.length ? estimated.reduce(function (sum, item) { return sum + item.kcal; }, 0)
+      : data.noExercise ? 0 : null;
+    return data;
+  }
+
+  function followDailyHtml(date, data) {
+    var restingEnergy = currentPatientId === "p1" ? dailyRestingEnergy() : null;
+    var profileNote = currentPatientId === "p1" && onboardingState.birthday && onboardingState.height && onboardingState.weight ? '暂无估算' : '资料待补';
+    function metric(label, number, note) {
+      return '<div class="daily-metric"><span>' + label + '</span>'
+        + (number === null ? '<b class="daily-metric-note">' + note + '</b>' : '<b>' + number + '</b><small>' + note + '</small>') + '</div>';
+    }
+    var hasEstimate = data.items.length > data.sum.unknown;
+    return '<div class="follow-readonly mode-meal" aria-label="每日小结，只读"><section class="h5-card daily-hero" aria-label="能量概览">'
+      + '<div class="daily-date-row"><time class="daily-date" datetime="' + date + '">' + dailyDateLabel(date) + '</time></div>'
+      + '<h2>' + (date === dailyToday ? '今天的饮食与运动' : '当天的饮食与运动') + '</h2><div class="daily-metrics">'
+      + metric('摄入量', hasEstimate ? data.sum.kcal : null, !data.items.length ? '未记录' : hasEstimate ? (data.sum.unknown ? '千卡 · 已知部分' : '千卡') : '暂无估算')
+      + metric('运动消耗量', data.exerciseKcal, data.exerciseKcal === null ? (data.exercise.length ? '暂无估算' : '未记录')
+        : data.exercise.some(function (item) { return item.kcal === null; }) ? '千卡 · 已知部分' : '千卡')
+      + metric('基础代谢', restingEnergy, restingEnergy === null ? profileNote : '千卡 / 天 · 估算') + '</div>'
+      + '<div class="daily-nutrition"><div class="daily-nutrition-head"><h3>本日营养合计</h3>' + (hasEstimate ? '<span>供能占比</span>' : '') + '</div>'
+      + (data.items.length ? dailyNutritionHtml(data, true) : '<p class="meal-pending">当天没有饮食记录，暂无营养合计。</p>') + '</div></section>'
+      + '<div class="daily-section-title"><h3>饮食记录</h3><span>正餐已记 ' + (3 - data.missing.length) + ' / 3</span></div>'
+      + (data.items.length ? data.meals.filter(function (meal) { return meal.items.length; }).map(followMealHtml).join('')
+        : '<section class="h5-card"><p class="hint">当天没有饮食记录。</p></section>')
+      + '<section class="h5-card"><h4>运动记录</h4>'
+      + (data.exercise.length ? data.exercise.map(function (item) {
+        return '<div class="daily-exercise">' + dailyExerciseContents(item) + '</div>';
+      }).join('') : '<p class="hint">' + (data.noExercise ? '当天未运动 · 0 千卡' : '当天没有运动记录。') + '</p>') + '</section></div>';
+  }
+
+  function followMealCardHtml(date, meal) {
+    return '<div class="follow-readonly mode-meal" aria-label="' + esc(meal.type) + '记录，只读"><div class="h5-card meal-fields">'
+      + '<div class="meal-row"><span class="meal-label">用餐日期</span><time class="meal-value" datetime="' + date + '">' + dailyDateLabel(date) + '</time></div>'
+      + '<div class="meal-row"><span class="meal-label">餐次</span><span class="meal-value">' + esc(meal.type) + '</span></div></div>'
+      + '<section class="h5-card"><h4>这餐食物</h4>' + (meal.items.length ? meal.items.map(function (food) {
+        return '<div class="meal-item"><span class="food-name">' + esc(food.name) + ' · ' + fmt(food.amount) + esc(food.unit) + '</span></div>';
+      }).join('') : '<p class="hint">该餐次暂无食物记录。</p>') + '</section>'
+      + (meal.items.length ? mealSummary(meal.items, meal.sum, false, true)
+        : '<section class="h5-card"><h4>本餐合计</h4><p class="hint">未记录，暂无热量和营养估算。</p></section>') + '</div>';
+  }
+
   /* 同一条推送合为一张卡，底层记录仍按各自任务保存。 */
   function followCards(tasks, date) {
     var byPush = new Map();
@@ -3828,6 +3955,56 @@
     });
   }
 
+  /* 单次测量只画散点，多次测量才连线；图表与文字共用同一份周报快照。 */
+  function weeklyChartHtml(title, unit, report, series, ticks, note) {
+    var dates = Array.from(new Set(series.flatMap(function (item) {
+      return item.points.map(function (point) { return point.date; });
+    }))).sort();
+    var firstTime = new Date(dates[0] + "T00:00:00Z").getTime();
+    var lastTime = new Date(dates[dates.length - 1] + "T00:00:00Z").getTime();
+    var min = ticks[0];
+    var max = ticks[ticks.length - 1];
+    function x(date) {
+      return dates.length === 1 ? 310 : 64 + 492 * (new Date(date + "T00:00:00Z").getTime() - firstTime) / (lastTime - firstTime);
+    }
+    function y(value) { return 184 - (value - min) / (max - min) * 150; }
+    var svg = '<svg viewBox="0 0 600 230" role="img" aria-label="' + esc(title + '，单位 ' + unit + '。' + series.map(function (item) {
+      return item.name + '：' + item.points.map(function (point) { return point.date + '，' + point.value; }).join('；');
+    }).join('。')) + '">'
+      + '<text x="8" y="18" font-size="12" fill="#617c99">' + esc(unit) + '</text>'
+      + ticks.map(function (value) {
+        return '<line x1="64" y1="' + y(value) + '" x2="556" y2="' + y(value) + '" stroke="#e7edf3"/>'
+          + '<text x="53" y="' + (y(value) + 4) + '" text-anchor="end" font-size="12" fill="#617c99">' + value + '</text>';
+      }).join('')
+      + '<path d="M64 28V184H556" fill="none" stroke="#bbcbd9"/>'
+      + dates.map(function (date) {
+        return '<text x="' + x(date) + '" y="206" text-anchor="middle" font-size="12" fill="#617c99">' + esc(date.slice(5)) + '</text>';
+      }).join('')
+      + series.map(function (item) {
+        var line = item.points.length > 1 ? '<polyline points="' + item.points.map(function (point) {
+          return x(point.date) + ',' + y(point.value);
+        }).join(' ') + '" fill="none" stroke="' + item.color + '" stroke-width="2.5"/>' : '';
+        return line + item.points.map(function (point) {
+          var labelOnRight = dates.length === 1 || point.date === dates[0];
+          return '<circle cx="' + x(point.date) + '" cy="' + y(point.value) + '" r="4" fill="' + item.color + '" stroke="#fff" stroke-width="1.5"/>'
+            + '<text x="' + (x(point.date) + (labelOnRight ? 12 : 0)) + '" y="' + (y(point.value) + (dates.length === 1 ? 4 : -10))
+            + '" text-anchor="' + (labelOnRight ? 'start' : 'middle') + '" font-size="13" font-weight="600" fill="' + item.color + '">' + point.value + '</text>';
+        }).join('');
+      }).join('') + '<text x="310" y="226" text-anchor="middle" font-size="12" fill="#617c99">日期</text></svg>';
+    return '<figure class="weekly-chart"><figcaption>' + esc(title) + '<span>' + esc(report.start + ' 至 ' + report.end) + '</span></figcaption>'
+      + '<div class="weekly-chart-legend">' + series.map(function (item) {
+        return '<span><i style="--series-color:' + item.color + '" aria-hidden="true"></i>' + esc(item.name) + '</span>';
+      }).join('') + '</div>' + svg + '<p class="weekly-chart-note">' + esc(note) + '</p></figure>';
+  }
+
+  function weeklyPushHtml(report, text) {
+    return '<div class="weekly-push"><div class="push-copy weekly-summary">' + esc(text) + '</div>'
+      + weeklyChartHtml('血糖趋势', 'mmol/L', report, report.glucose, [5,6,7,8,9], '空腹血糖记录 2 次，较本周首次记录上升 1.1 mmol/L。')
+      + weeklyChartHtml('血脂记录', 'mmol/L', report, report.lipids, [0,1,2,3,4,5,6], '血脂四项各记录 1 次，仅展示本次数值，暂时无法判断变化趋势。')
+      + weeklyChartHtml('尿酸记录', 'μmol/L', report, report.uricAcid, [0,100,200,300,400,500], '尿酸记录 1 次，仅展示本次数值，暂时无法判断变化趋势。')
+      + '</div>';
+  }
+
   function taskDetailHtml(task, date) {
     var hasPushTime = Object.prototype.hasOwnProperty.call(task, "pushTime");
     var sent = hasPushTime ? !!task.pushTime : task.shown === "已完成" || task.shown === "进行中";
@@ -3836,17 +4013,29 @@
       : planned ? task.plan || task.push || "暂无推送正文。" : "未推送。";
     var card = sent ? task.card : planned ? task.planCard || task.card : "";
     var completion = followTaskTime(date, task.done);
-    var html = '<div class="follow-message-status">' + pill(task.shown)
-      + (completion === "—" ? "" : '<span>完成时间 ' + esc(completion) + '</span>') + '</div>'
-      + '<section class="follow-message-block"><h4>推送内容</h4><div class="push-copy">' + esc(text)
-      + (card ? '<div class="follow-message-card">' + esc(card) + ' · ' + esc(task.cardType || "小程序卡片") + '</div>' : '')
-      + '</div></section>';
-
     var members = task.members || [task];
+    var dailyView = sent && members.some(function (member) { return member.kind === "小结"; });
+    var mealTask = members.find(function (member) { return /^(早餐|午餐|晚餐)餐食确认$/.test(followTaskName(member)); });
+    var mealView = (sent || planned) && !!mealTask;
+    var data = dailyView || mealView ? followNutritionData(date) : null;
+    var html = '<div class="follow-message-status">' + pill(task.shown)
+      + (completion === "—" ? "" : '<span>完成时间 ' + esc(completion) + '</span>') + '</div>';
+    if (dailyView) {
+      html += '<section class="follow-message-block"><h4>每日小结</h4>' + followDailyHtml(date, data) + '</section>';
+    } else html += '<section class="follow-message-block"><h4>推送内容</h4>'
+      + (task.weeklyReport && (sent || planned) ? weeklyPushHtml(task.weeklyReport, text) : '<div class="push-copy">' + esc(text)
+      + (card && !mealView ? '<div class="follow-message-card">' + esc(card) + ' · ' + esc(task.cardType || "小程序卡片") + '</div>' : '')
+      + '</div>') + '</section>';
+
     var weight = members.find(function (member) { return member.kind === "体重" && (member.result || member.reply); });
     if (weight) html += '<section class="follow-message-block"><h4>体重记录</h4><div class="push-copy">'
       + esc(weight.result || weight.reply) + '</div></section>';
-    if (currentPatientId === "p1") {
+    if (mealView) {
+      var type = followTaskName(mealTask).replace('餐食确认', '');
+      var meal = data.meals.find(function (item) { return item.type === type; });
+      html += '<section class="follow-message-block"><h4>餐食记录</h4>' + followMealCardHtml(date, meal) + '</section>';
+    }
+    if (currentPatientId === "p1" && !dailyView && !mealView) {
       var mealTypes = new Set(members.flatMap(function (member) {
         if (member.mealTypes && (member.shown === "已完成" || followTaskName(member) === "缺餐补记、运动记录提醒")) return member.mealTypes;
         return [];
@@ -3857,7 +4046,7 @@
       if (meals.length) html += '<section class="follow-message-block"><h4>餐食记录</h4>'
         + meals.map(followMealHtml).join("") + '</section>';
     }
-    if (task.exercise && (task.exercise.length || task.noExercise)) {
+    if (!dailyView && task.exercise && (task.exercise.length || task.noExercise)) {
       var exerciseHtml = task.exercise.map(function (item) {
         return '<div class="daily-exercise">' + dailyExerciseContents(item) + '</div>';
       }).join("");
