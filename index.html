@@ -1366,7 +1366,7 @@
   var onboardingReturnScene = "";
   var onboardingState = {
     name: "五患者",
-    phone: "10000000000",
+    phone: "13800000000",
     gender: "女",
     idCard: "",
     birthday: "1990-01-01",
@@ -1523,10 +1523,10 @@
   var followContentTrigger = null;
   var detailOrigin = "patient";
   var patients = [
-    {id:"p1", name:"演示患者", gender:"女", age:34, phone:"10000001001", diagnosis:"2型糖尿病", project:"糖脂减重管理码", doctor:"张医生", scene:"慢病随访"},
-    {id:"p2", name:"演示患者二", gender:"男", age:41, phone:"10000001002", diagnosis:"糖尿病", project:"糖脂减重管理码", doctor:"王医生", scene:"用药提醒"},
-    {id:"p3", name:"演示患者三", gender:"女", age:29, phone:"10000001003", diagnosis:"冠心病", project:"糖脂减重管理码", doctor:"李医生", scene:"糖脂随访"},
-    {id:"p4", name:"演示患者四", gender:"男", age:52, phone:"10000001004", diagnosis:"高血压", project:"糖脂减重管理码", doctor:"陈医生", scene:"糖脂随访"}
+    {id:"p1", name:"演示患者", gender:"女", age:34, phone:"13800001001", diagnosis:"2型糖尿病", project:"糖脂减重管理码", doctor:"张医生", scene:"慢病随访"},
+    {id:"p2", name:"演示患者二", gender:"男", age:41, phone:"13800001002", diagnosis:"糖尿病", project:"糖脂减重管理码", doctor:"王医生", scene:"用药提醒"},
+    {id:"p3", name:"演示患者三", gender:"女", age:29, phone:"13800001003", diagnosis:"冠心病", project:"糖脂减重管理码", doctor:"李医生", scene:"糖脂随访"},
+    {id:"p4", name:"演示患者四", gender:"男", age:52, phone:"13800001004", diagnosis:"高血压", project:"糖脂减重管理码", doctor:"陈医生", scene:"糖脂随访"}
   ];
   var services = {
     p1:{status:"进行中", joined:"2026-10-01 09:20:00", endedAt:"", reason:"", sceneCode:"糖脂减重管理码"},
@@ -1730,6 +1730,28 @@
         ? renderSnack : function () { openMealChatRecord(conversation); });
       showLatestMealReview(body);
     }
+  }
+
+  // 餐食提交后停留在完成页，患者可主动返回对应的微信对话。
+  function renderMealCompletion(conversation, adjusted) {
+    showPhone();
+    setMode("onboarding");
+    pageStack = [conversation === "snack-chat" ? "snack-chat" : "chat"];
+    setBar("餐食确认完成", false);
+    var body = document.getElementById("h5Body");
+    var foot = document.getElementById("h5Foot");
+    var title = adjusted ? "餐食调整已保存" : "餐食已确认";
+    var description = adjusted
+      ? "已按您调整的餐食更新记录，调整后的餐评将发送到对话中，关闭页面后可进行查看。"
+      : "餐食已确认并记录，关闭页面可返回对话，继续和健康助手交流。";
+    body.innerHTML = '<div class="h5-card completion-card"><div class="completion-check">✓</div>'
+      + '<div class="completion-title">' + title + '</div><div class="completion-desc">' + description + '</div></div>';
+    body.scrollTop = 0;
+    foot.innerHTML = '<button class="btn btn-primary btn-lg btn-block" type="button" id="btnMealCompletionReturn">关闭</button>';
+    document.getElementById("btnMealCompletionReturn").onclick = function () {
+      if (conversation === "snack-chat") renderAfternoonTeaChat();
+      else renderChat(conversation);
+    };
   }
 
   // 展示扫码建档后的基础信息收集，手机号由微信授权获取并保持只读。
@@ -2217,7 +2239,8 @@
       message = reviewMessage(record.foods, record.group, "更新后的餐评");
       (record.reviews ||= []).push(message);
     }
-    deliverMealReview("snack-chat", message, stayed);
+    if (stayed) renderMealCompletion("snack-chat", !!message);
+    else deliverMealReview("snack-chat", message, false);
   }
 
   function confirmMeal(stayed, evaluated) {
@@ -2256,13 +2279,8 @@
     recordedMealType = mealType;
     mealConfirmed = true;
     mealChatRecords[mealChatScene] = {type:mealType, snack:mealSnackRecord};
-    if (services.p1.status === "已结束" && stayed) {
-      toast("本餐已保存");
-      renderMeal(null, evaluated);
-    } else {
-      if (stayed && !message) toast("本餐已确认");
-      deliverMealReview(mealChatScene, message, stayed);
-    }
+    if (stayed) renderMealCompletion(mealChatScene, !!message);
+    else deliverMealReview(mealChatScene, message, false);
   }
 
   function findFood(id, items) {
@@ -2470,9 +2488,9 @@
     body.innerHTML = '<div class="wx-time">2026-10-21 21:00</div>'
       + '<div class="wx-msg"><div class="wx-avatar">助</div><div class="wx-bubble daily-chat-review">'
       + '<p><strong>今日小结：</strong>' + esc(dailySummaryPush.join("")) + '</p>'
-      + '<p>身高、出生日期点这里补全：<button class="daily-inline-link" type="button" id="dailyChatProfile">打开专档建档 ›</button><br/>'
+      + '<p>身高、出生日期点这里补全：<button class="daily-inline-link" type="button" id="dailyChatProfile">#小程序://管理助手/专档建档/3ksmfiEApr78X4y</button><br/>'
       + '当前体重直接发我一个数字就行（斤或公斤都可以），之后每晚小结就能和你的基础代谢对比～</p>'
-      + '<p>三餐打卡时间可以点这里调整成适合你的节奏：<button class="daily-inline-link" type="button" id="dailyChatTimes">打开三餐打卡时间调整 ›</button></p></div></div>'
+      + '<p>三餐打卡时间可以点这里调整成适合你的节奏：<button class="daily-inline-link" type="button" id="dailyChatTimes">#小程序://管理助手/三餐打卡时间调整/iHiTpe7qyyWBLtj</button></p></div></div>'
       + '<div class="wx-msg"><div class="wx-avatar">助</div><div>' + mealCardHtml("查看每日小结", "查看饮食明细、运动消耗") + '</div></div>'
       + dailyMealReviews.map(function (review) {
         return '<div class="wx-time">' + dailyDateLabel(review.date) + '</div>'
